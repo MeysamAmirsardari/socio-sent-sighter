@@ -1,6 +1,7 @@
 # socio-sent-sighter
 Persian Social Media Sentiment Analyzer
 
+<img src="https://github.com/MeysamAmirsardari/socio-sent-sighter/tree/main/UI/pic1.png" width="300" height="157">
 
 ### Under Construction...
 * **Warning: This project is still under development and it's not yet ready for real-world usage!** please wait for the first official release... :)
