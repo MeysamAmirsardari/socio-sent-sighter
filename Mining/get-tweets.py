@@ -1,20 +1,60 @@
-import tweepy
+import pandas as pd
+from datetime import date, timedelta
+import twint_to_db
+import sys  # for command line argument parsing
+import numpy as np  # for creation of a an array of ones
 
 
-bearer_token = ""
+# a function to construct filenames for dataframe storage
+def construct_filename(row):
+    filename = './' + row['location_name'] + '_' + row['searchterm'] + '.pkl'
+    return (filename)
 
-client = tweepy.Client(bearer_token)
 
-# Get Tweets
+def main(test=False):
+    yesterday = date.today() - timedelta(days=1)
+    yesterday = yesterday.strftime('%Y-%m-%d')
+    # print(yesterday)
 
-# This endpoint/method returns a variety of information about the Tweet(s)
-# specified by the requested ID or list of IDs
+    dataframe_of_cities = pd.DataFrame({
+        'location_name': ['dublin', 'london', 'newyork'],
+        'searchterm': ['nuclear', 'nuclear', 'nuclear'],
+        'geo': ['53.349538,-6.260678,10km', '51.516479,-0.096949,10km', '40.751177,-73.994641,10km'],
+        'since': [yesterday, yesterday, yesterday],
+        'until': [False, False, False],
+        'limit': [0, 0, 0]
+    }, index=[0, 1, 2])
 
-tweet_ids = [1460323737035677698, 1293593516040269825, 1293595870563381249]
+    if test:
+        n = len(dataframe_of_cities)
+        dataframe_of_cities.loc[:, 'limit'] = 20 * np.ones(n).astype(int)
 
-# By default, only the ID and text fields of each Tweet will be returned
-# Additional fields can be retrieved using the tweet_fields parameter
-response = client.get_tweets(tweet_ids, tweet_fields=["created_at"])
+    # create new dataframe column based on other columns using a lambda function:
+    # https://stackoverflow.com/questions/26886653/pandas-create-new-column-based-on-values-from-other-columns
+    dataframe_of_cities['filepath'] = dataframe_of_cities.apply(lambda row: construct_filename(row), axis=1)
 
-for tweet in response.data:
-    print(tweet.id, tweet.created_at)
+    print(dataframe_of_cities)
+
+    # iterate through rows of the dataframe to call the scraper
+    for row in dataframe_of_cities.itertuples(index=True, name='Pandas'):
+        twint_to_db.main(
+            searchterm=getattr(row, "searchterm"),
+            geo=getattr(row, "geo"),
+            since=getattr(row, "since"),
+            until=getattr(row, "until"),
+            limit=getattr(row, "limit"),
+            filepath=getattr(row, "filepath")
+        )
+
+
+if __name__ == '__main__':
+    if len(sys.argv) == 2 and str(sys.argv[1]) == '--help':
+        print("To scrape a limit of 20 tweets per line run: ")
+        print("python3 scrape_cities.py --test")
+
+    elif len(sys.argv) == 2 and str(sys.argv[1]) == '--test':
+        print("Scraping 20 tweets per city as a test.")
+        main(test=True)
+
+    else:
+        main()
