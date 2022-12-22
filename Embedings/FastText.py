@@ -1,8 +1,9 @@
 # General
+import csv
+
 import numpy as np
 import pandas as pd
 import codecs
-from google.colab import files
 # Word Embedding
 from gensim.models import KeyedVectors
 # Keras
@@ -16,18 +17,16 @@ from keras.utils.np_utils import to_categorical
 from keras.metrics import categorical_accuracy
 from keras.utils import plot_model
 from keras.preprocessing.text import Tokenizer
-from keras.preprocessing.sequence import pad_sequences
+from keras_preprocessing.sequence import pad_sequences
 # Preprocessing
-from stopwords_guilannlp import stopwords_output
 from hazm import *
 # Visualization
-%matplotlib inline
 import matplotlib.pyplot as plt
 from keras.utils import plot_model
 # Measuring metrics
 from sklearn.metrics import f1_score
 
-test = pd.read_csv('test.csv', index_col=None, header=None, encoding="utf-8")
+test = pd.read_csv('../Datasets/test.csv', index_col=None, header=None, encoding="utf-8")
 
 x_test = test[0]
 y_test = test[1]
@@ -38,9 +37,9 @@ print('Number of testing label: ', y_test.shape)
 x_test = np.asarray(x_test)
 y_test = np.asarray(y_test)
 
-original = pd.read_csv('original.csv', index_col=None, header=None, encoding="utf-8")
-balanced = pd.read_csv('balanced.csv', index_col=None, header=None, encoding="utf-8")
-translation = pd.read_csv('translation.csv', index_col=None, header=None, encoding="utf-8")
+original = pd.read_csv('../Datasets/original.csv', index_col=None, header=None, encoding="utf-8")
+balanced = pd.read_csv('../Datasets/balanced.csv', index_col=None, header=None, encoding="utf-8")
+translation = pd.read_csv('../Datasets/translation.csv', index_col=None, header=None, encoding="utf-8")
 
 selected_dataset = original
 
@@ -58,18 +57,19 @@ y_train = np.asarray(y_train)
 
 # See the data number of sentence in each category
 from collections import Counter
+
 cnt = Counter(y_train)
 cnt = dict(cnt)
-print('count: '+ str(cnt))
+print('count: ' + str(cnt))
 
 labels = list(cnt.keys())
 sizes = list(cnt.values())
-colors = ['#3fba36', '#66b3ff','#ffcc99','#ff9999', '#d44444']
+colors = ['#3fba36', '#66b3ff', '#ffcc99', '#ff9999', '#d44444']
 fig1, ax1 = plt.subplots()
 ax1.pie(sizes, labels=labels, colors=colors,
         autopct='%1.1f%%', startangle=90)
-#draw circle
-centre_circle = plt.Circle((0,0),0.70,fc='white')
+# draw circle
+centre_circle = plt.Circle((0, 0), 0.70, fc='white')
 fig = plt.gcf()
 fig.gca().add_artist(centre_circle)
 # Equal aspect ratio ensures that pie is drawn as a circle
@@ -80,32 +80,34 @@ plt.tight_layout()
 plt.show()
 
 ################################################
-#TODO: move to preprocess:
+# TODO: move to preprocess:
 
 puncs = ['،', '.', ',', ':', ';', '"']
 normalizer = Normalizer()
 lemmatizer = Lemmatizer()
 
+
 # turn a doc into clean tokens
 def clean_doc(doc):
-    doc = normalizer.normalize(doc) # Normalize document using Hazm Normalizer
+    doc = normalizer.normalize(doc)  # Normalize document using Hazm Normalizer
     tokenized = word_tokenize(doc)  # Tokenize text
     tokens = []
     for t in tokenized:
-      temp = t
-      for p in puncs:
-        temp = temp.replace(p, '')
-      tokens.append(temp)
+        temp = t
+        for p in puncs:
+            temp = temp.replace(p, '')
+        tokens.append(temp)
     # tokens = [w for w in tokens if not w in stop_set]    # Remove stop words
     tokens = [w for w in tokens if not len(w) <= 1]
     tokens = [w for w in tokens if not w.isdigit()]
-    tokens = [lemmatizer.lemmatize(w) for w in tokens] # Lemmatize sentence words using Hazm Lemmatizer
+    tokens = [lemmatizer.lemmatize(w) for w in tokens]  # Lemmatize sentence words using Hazm Lemmatizer
     tokens = ' '.join(tokens)
     return tokens
 
+
 ###################################################
 
-EMBEDDING_FILE = 'wiki.fa.vec'
+EMBEDDING_FILE = "wiki.fa.vec"
 
 
 def import_with_gensim(file_address):
@@ -120,6 +122,14 @@ def import_with_gensim(file_address):
 
 ft_model, ft_words = import_with_gensim(EMBEDDING_FILE)
 
+df = pd.DataFrame(ft_words)
+df.to_csv('../ft_words.csv')
+df = pd.DataFrame(ft_model)
+df.to_csv('../ft_model.csv')
+
+#ft_words = pd.read_csv('../ft_words.csv').values.tolist()
+#ft_model = pd.read_csv('../ft_model.csv').values.tolist()
+
 # FastText embedding dimensionality
 embed_size = 300
 
@@ -127,7 +137,7 @@ embed_size = 300
 # same statistics for the rest of our own random generated weights.
 embedding_list = list()
 for w in ft_words:
-  embedding_list.append(ft_model[w])
+    embedding_list.append(ft_model[w])
 
 all_embedding = np.stack(embedding_list)
 emb_mean, emb_std = all_embedding.mean(), all_embedding.std()
@@ -135,12 +145,12 @@ emb_mean, emb_std = all_embedding.mean(), all_embedding.std()
 # Apply preprocessing step to training data
 train_docs = np.empty_like(x_train)
 for index, document in enumerate(x_train):
-  train_docs[index] = clean_doc(document)
+    train_docs[index] = clean_doc(document)
 
 # Applying preprocessing step to test data
 test_docs = np.empty_like(x_test)
 for index, document in enumerate(x_test):
-  test_docs[index] = clean_doc(document)
+    test_docs[index] = clean_doc(document)
 
 num_words = 2000
 
@@ -179,7 +189,7 @@ for word, i in tokenizer.word_index.items():
         # and store inside the embedding matrix that we will train later on.
         embedding_matrix[i] = embedding_vector
         embeddedCount += 1
-    else:   # Unknown words
+    else:  # Unknown words
         embedding_vector = ft_model['subdivision_name']
         embedding_matrix[i] = embedding_vector
         embeddedCount += 1
@@ -192,22 +202,14 @@ encoded_docs = tokenizer.texts_to_sequences(test_docs)
 # Pad testing sequences
 x_test_padded = pad_sequences(encoded_docs, maxlen=max_length, padding='post')
 
-
-
-
-
-
-
-
 #####################################3
-#TODO: move this part to "models"
+# TODO: move this part to "models"
 
 # Prepare labels for categorical prediction
 categorical_y_train = to_categorical(y_train, 5)
 categorical_y_test = to_categorical(y_test, 5)
 
-
-#B-LSTM:
+# B-LSTM:
 
 model_blstm = Sequential()
 model_blstm.add(Embedding(vocab_size, embedding_matrix.shape[1], weights=[embedding_matrix], trainable=True))
@@ -218,28 +220,29 @@ model_blstm.add(Dense(300, activation="relu"))
 model_blstm.add(Dropout(0.1))
 model_blstm.add(Dense(5, activation='softmax'))
 
-
 model_blstm.compile(loss='categorical_crossentropy',
-              optimizer='adam',
-              metrics=[categorical_accuracy])
+                    optimizer='adam',
+                    metrics=[categorical_accuracy])
 
 model_blstm.summary()
 batch_size_blstm = 64
 epochs_blstm = 5
 
 # Train model
-hist_blstm = model_blstm.fit(x_train_padded, categorical_y_train, batch_size=batch_size_blstm, epochs=epochs_blstm, shuffle=True)
+hist_blstm = model_blstm.fit(x_train_padded, categorical_y_train, batch_size=batch_size_blstm, epochs=epochs_blstm,
+                             shuffle=True)
+
+model_blstm.save("BLSTM_model")
 
 # Evaluate model
 loss_blstm, acc_blstm = model_blstm.evaluate(x_test_padded, categorical_y_test, verbose=0)
-print('Test Accuracy: %f' % (acc_blstm*100))
+print('Test Accuracy: %f' % (acc_blstm * 100))
 
 # Get prediction label
 y_pred_blstm = model_blstm.predict_classes(x_test_padded)
 
-
 ######################################3333
-#TODO: CNN:
+# TODO: CNN:
 
 model_cnn = Sequential()
 model_cnn.add(Embedding(vocab_size, embedding_matrix.shape[1], weights=[embedding_matrix], trainable=True))
@@ -254,29 +257,32 @@ model_cnn.add(Dense(500, activation="sigmoid"))
 model_cnn.add(Dense(5, activation='softmax'))
 
 model_cnn.compile(loss='categorical_crossentropy',
-              optimizer='adam',
-              metrics=[categorical_accuracy])
+                  optimizer='adam',
+                  metrics=[categorical_accuracy])
 
 model_cnn.summary()
 batch_size_cnn = 64
 epochs_cnn = 8
 
 # Train model
-hist_cnn = model_cnn.fit(x_train_padded, categorical_y_train, batch_size=batch_size_cnn, epochs=epochs_cnn, shuffle=True)
+hist_cnn = model_cnn.fit(x_train_padded, categorical_y_train, batch_size=batch_size_cnn, epochs=epochs_cnn,
+                         shuffle=True)
 
 # Evaluate model
 loss_cnn, acc_cnn = model_cnn.evaluate(x_test_padded, categorical_y_test, verbose=0)
-print('Test Accuracy: %f' % (acc_cnn*100))
+print('Test Accuracy: %f' % (acc_cnn * 100))
+
+model_cnn.save("CNN_model")
 
 # Get prediction label
 y_pred_cnn = model_cnn.predict_classes(x_test_padded)
 
-#TODO: eval:
+# TODO: eval:
 
 y_test_label = []
 for counter in range(0, len(categorical_y_test)):
-  label = np.argmax(categorical_y_test[:][counter])
-  y_test_label.append(label)
+    label = np.argmax(categorical_y_test[:][counter])
+    y_test_label.append(label)
 y_test_label = np.array(y_test_label)
 
 from sklearn.metrics import confusion_matrix
