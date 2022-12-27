@@ -1,3 +1,4 @@
+import csv
 import tweepy
 
 
@@ -5,16 +6,11 @@ bearer_token = ""
 
 client = tweepy.Client(bearer_token)
 
-# Get Tweet's Retweeters
-
-# This endpoint/method allows you to get information about who has Retweeted a
-# Tweet
+csvFile = open('URLs_Karaj.csv', 'a', encoding='utf-8', errors='replace')
+csvReader = csv.reader(csvFile)
 
 tweet_id = 1460323737035677698
 
-# By default, only the ID, name, and username fields of each user will be
-# returned
-# Additional fields can be retrieved using the user_fields parameter
 response = client.get_retweeters(tweet_id, user_fields=["profile_image_url"])
 
 for user in response.data:
